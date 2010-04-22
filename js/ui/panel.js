@@ -405,12 +405,16 @@ Panel.prototype = {
                                           y_fill: true });
         this._centerBox.add(clockButton, { y_fill: false });
         clockButton.connect('clicked', Lang.bind(this, this._toggleCalendar));
+	clockButton.connect('button-release-event', Lang.bind(this, this._toggleClockPropertiesPopup));
 
         this._clock = new St.Label();
         clockButton.set_child(this._clock);
         this._clockButton = clockButton;
 
         this._calendarPopup = null;
+	this._clockPropertiesPopup = null;
+	this._isDateVisible = true;
+	this._isSecVisible = true;
 
         /* right */
 
@@ -546,13 +550,12 @@ Panel.prototype = {
 
     _updateClock: function() {
         let displayDate = new Date();
-        let msecRemaining = 60000 - (1000 * displayDate.getSeconds() +
-                                     displayDate.getMilliseconds());
-        if (msecRemaining < 500) {
-            displayDate.setMinutes(displayDate.getMinutes() + 1);
-            msecRemaining += 60000;
-        }
-
+	let msecRemaining = 0;
+	/* Translators: time format for day */
+	let timestyle = _("%a ");
+	if (this._isDateVisible)
+	    /* Translators: time format for full date */
+	    timestyle += _("%e %B, %Y ");
         // if the locale representations of 05:00 and 17:00 do not
         // start with the same 2 digits, it must be a 24h clock
         let fiveAm = new Date();
@@ -562,17 +565,62 @@ Panel.prototype = {
         let isTime24h = fiveAm.toLocaleFormat("%X").substr(0,2) !=
                         fivePm.toLocaleFormat("%X").substr(0,2);
         if (isTime24h) {
-            /* Translators: This is the time format used in 24-hour mode. */
-            this._clock.set_text(displayDate.toLocaleFormat(_("%a %R")));
+            /* Translators: time format used in 24-hour mode. */
+            timestyle += _("%R");
         } else {
-            /* Translators: This is a time format used for AM/PM. */
-            this._clock.set_text(displayDate.toLocaleFormat(_("%a %l:%M %p")));
+            /* Translators: time format used for AM/PM. */
+            timestyle += _("%l:%M")));
         }
+	if (this._isSecVisible) {
+	    msecRemaining = 1000 - displayDate.getMilliseconds();
+	    if (msecRemaining < 100) {
+		displayDate.setSeconds(displayDate.getSeconds() + 1);
+		msecRemaining += 1000;
+	    }
+	    /* Translators: time format */
+	    timestyle += _(" %S");
+		if (!isTime24h)
+		    timestyle += _(" %p");
+	} else {
+	    msecRemaining = 60000 - (1000 * displayDate.getSeconds() +
+					displayDate.getMilliseconds());
+	    if (msecRemaining < 500) {
+		displayDate.setMinutes(displayDate.getMinutes() + 1);
+		msecRemaining += 60000;
+	    }
+	    /* Translators: time format in 12-hour clock without seconds  */
+	    timestyle += _("%l:%M %p");
+	}
+
         Mainloop.timeout_add(msecRemaining, Lang.bind(this, this._updateClock));
         return false;
     },
 
-    _toggleCalendar: function(clockButton) {
+    setClockSecVisible: function(isSecVisible) {
+	this._isSecVisible = isSecVisible;
+	this._updateClock();
+    },
+
+    setClockDateVisible: function(isDateVisible) {
+	this._isDateVisible = isDateVisible;
+	this._updateClock();
+    },
+
+    _toggleClockPropertiesPopup: function(clockWidget, buttonEvent) {
+	/* placeholder */
+	if (this._clockPropertiesPopup == null)
+	    this._clockPropertiesPopup = new ClockPropertiesPopup(this);
+	if (this._clockPropertiesPopup.isVisible())
+	    this._clockPropertiesPopup.hide(false);
+	else if ((this._calendarPopup == null) ||
+		!(this._calendarPopup.isVisible()))
+	    this._clockPropertiesPopup.show();
+    },
+    
+   _toggleCalendar: function(clockButton) {
+	if ((this._clockPropertiesPopup != null) && 
+		(this._clockPropertiesPopup.isVisible()))
+	    this._clockPropertiesPopup.hide(true);
         if (clockButton.checked) {
             if (this._calendarPopup == null)
                 this._calendarPopup = new CalendarPopup();
@@ -660,6 +708,57 @@ Panel.prototype = {
     }
 };
 
+function ClockPropertiesPopup(panel) {
+    this._init(panel);
+}
+
+ClockPropertiesPopup.prototype = {
+    _init: function(panel) {
+	let panelActor = Main.panel.actor;
+	this.panel = panel;
+
+	this.actor = new St.BoxLayout({name: 'clockPropertiesPopup' });
+	this.clockProperties = new ClockProperties.ClockProperties(
+	      panel, panel._isDateVisible, panel._isSecVisible);
+	this.actor.add(this.clockProperties.actor);
+
+	Main.chrome.addActor(this.actor, { visibleInOverview: true,
+					    affectsStruts: false });
+	this.actor.y = (panelActor.y + panelActor.height - this.actor.height);
+	this._isVisible = false;
+    },
+    
+    show: function() {
+	let panelActor = Main.panel.actor;
+        this.actor.x = Math.round(panelActor.x + (panelActor.width - this.actor.width) / 2);
+        this.actor.lower(panelActor);
+        this.actor.show();
+        Tweener.addTween(this.actor,
+                         { y: panelActor.y + panelActor.height,
+                           time: 0.2,
+                           transition: "easeOutQuad"
+                         });	
+	this._isVisible = true;
+    },
+
+    hide: function(quick) {
+        let panelActor = Main.panel.actor;
+	let speed = (quick) ? 0.001 : 0.2;
+        Tweener.addTween(this.actor,
+                         { y: panelActor.y + panelActor.height - this.actor.height,
+                           time: speed,
+                           transition: "easeOutQuad",
+                           onComplete: function() { this.actor.hide(); },
+                           onCompleteScope: this
+                         });
+	this._isVisible = false;
+    },
+
+    isVisible: function() {
+	return this._isVisible;
+    }
+}
+
 function CalendarPopup() {
     this._init();
 }
@@ -676,6 +775,7 @@ CalendarPopup.prototype = {
         Main.chrome.addActor(this.actor, { visibleInOverview: true,
                                            affectsStruts: false });
         this.actor.y = (panelActor.y + panelActor.height - this.actor.height);
+	this._isVisible = false;
     },
 
     show: function() {
@@ -692,6 +792,7 @@ CalendarPopup.prototype = {
                            time: 0.2,
                            transition: "easeOutQuad"
                          });
+	this._isVisible = true;
     },
 
     hide: function() {
@@ -704,5 +805,10 @@ CalendarPopup.prototype = {
                            onComplete: function() { this.actor.hide(); },
                            onCompleteScope: this
                          });
+	this._isVisible = false;
+    },
+
+    isVisible: function() {
+	return this._isVisible;
     }
 };
