@@ -13,6 +13,7 @@ const Gettext = imports.gettext.domain('gnome-shell');
 const _ = Gettext.gettext;
 
 const AppDisplay = imports.ui.appDisplay;
+const ClockProperties = imports.ui.clockProperties;
 const Calendar = imports.ui.calendar;
 const Main = imports.ui.main;
 const StatusMenu = imports.ui.statusMenu;
@@ -569,7 +570,7 @@ Panel.prototype = {
             timestyle += _("%R");
         } else {
             /* Translators: time format used for AM/PM. */
-            timestyle += _("%l:%M")));
+            timestyle += _("%l:%M");
         }
 	if (this._isSecVisible) {
 	    msecRemaining = 1000 - displayDate.getMilliseconds();
@@ -580,7 +581,8 @@ Panel.prototype = {
 	    /* Translators: time format */
 	    timestyle += _(" %S");
 		if (!isTime24h)
-		    timestyle += _(" %p");
+			/* Translators: time format*/
+			timestyle += _(" %p");
 	} else {
 	    msecRemaining = 60000 - (1000 * displayDate.getSeconds() +
 					displayDate.getMilliseconds());
@@ -588,10 +590,11 @@ Panel.prototype = {
 		displayDate.setMinutes(displayDate.getMinutes() + 1);
 		msecRemaining += 60000;
 	    }
-	    /* Translators: time format in 12-hour clock without seconds  */
-	    timestyle += _("%l:%M %p");
+	    if (!isTime24h)
+			/* Translators: time format*/
+			timestyle += _(" %p");
 	}
-
+        this._clock.set_text(displayDate.toLocaleFormat(timestyle));
         Mainloop.timeout_add(msecRemaining, Lang.bind(this, this._updateClock));
         return false;
     },

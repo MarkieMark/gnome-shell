@@ -646,6 +646,29 @@ StTooltip {
     spacing: 6px;
 }
 
+/* clock properties popup */
+
+#clockPropertiesPopup {
+    border-radius: 5px;
+    background: rgba(0,0,0,0.9);
+    border: 1px solid rgba(128,128,128,0.45);
+    color: #FFFFFF;
+    font-size: 14px;
+}
+
+#clockPropertiesPopup .properties {
+    padding: 10px;
+}
+
+#clockPropertiesPopup .properties .properties-checkbox {
+    font-weight:bold;
+    padding-left:10px;
+}
+
+#clockPropertiesPopup .properties .properties-checkbox:pressed {
+    background-color: #777777;
+}
+
 /* Calendar popup */
 
 #calendarPopup {
