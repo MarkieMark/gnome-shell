@@ -1,5 +1,6 @@
 const St = imports.gi.St;
 const Gtk = imports.gi.Gtk;
+const Shell = imports.gi.Shell;
 const Lang = imports.lang;
 const Gettext = imports.gettext.domain('gnome-shell');
 const _ = Gettext.gettext;
@@ -15,6 +16,12 @@ ClockProperties.prototype = {
 				  reactive: true});
 	this._isSecVisible = isSecVisible;
 	this._isDateVisible = isDateVisible;
+	var key;
+	for (key in Shell.GConf)
+		print(String(key) + ":" + String(Shell.GConf[key]));
+	this._gconf = Shell.GConf.get_default();
+	for (key in this._gconf)
+		print(String(key) + ":" + String(this._gconf[key]));
 	this._panel = panel;
 	this._okLabel = /*"☑"*/ "<b>&#9745;</b>";
 	this._noLabel = /*"☐"*/ "<b>&#9744;</b>";
@@ -46,6 +53,8 @@ ClockProperties.prototype = {
 	    c[i].destroy();
 	this._update();
 	this._panel.setClockDateVisible(this._isDateVisible);
+	this._gconf.set_boolean('/apps/gnome-shell/panel_clock/prefs/show_date',
+							this._isDateVisible);
     },
 
     _toggleSecVisibility: function() {
@@ -55,5 +64,7 @@ ClockProperties.prototype = {
 	    c[i].destroy();
 	this._update();
 	this._panel.setClockSecVisible(this._isSecVisible);
+	this._gconf.set_boolean('/apps/gnome-shell/panel_clock/prefs/show_seconds',
+							this._isSecVisible);
     }
 }

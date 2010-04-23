@@ -406,16 +406,43 @@ Panel.prototype = {
                                           y_fill: true });
         this._centerBox.add(clockButton, { y_fill: false });
         clockButton.connect('clicked', Lang.bind(this, this._toggleCalendar));
-	clockButton.connect('button-release-event', Lang.bind(this, this._toggleClockPropertiesPopup));
+		clockButton.connect('button-release-event', 
+							Lang.bind(this,	this._toggleClockPropertiesPopup));
 
         this._clock = new St.Label();
         clockButton.set_child(this._clock);
         this._clockButton = clockButton;
 
         this._calendarPopup = null;
-	this._clockPropertiesPopup = null;
-	this._isDateVisible = true;
-	this._isSecVisible = true;
+		this._clockPropertiesPopup = null;
+		let gconf = Shell.GConf.get_default();
+		this._isDateVisible = true;
+		this._isSecVisible = true;
+		try {
+			this._isDateVisible = gconf.get_boolean(
+					'/apps/gnome-shell/panel_clock/prefs/show_date');
+			this._isSecVisible = gconf.get_boolean(
+					'/apps/gnome-shell/panel_clock/prefs/show_seconds');
+		} catch (noneyet) {
+			print(String(noneyet));
+			for (let i = 0; i < 20; i++) {
+				if (gconf.get_string('/apps/panel/applets/applet_' + i + '/bonobo_iid')
+						== 'OAFIID:GNOME_ClockApplet') {
+					this._isDateVisible = gconf.get_boolean(
+							'/apps/panel/applets/applet_' + i + '/prefs/show_date');
+					this._isSecVisible = gconf.get_boolean(
+							'/apps/panel/applets/applet_' + i + '/prefs/show_seconds');
+					print('date visibility ' + this._isDateVisible);
+					print('sec visibility ' + this._isSecVisible);
+					print('ind ' + i);
+					i = 20;
+				}
+			}
+			gconf.set_boolean('/apps/gnome-shell/panel_clock/prefs/show_date',
+							  this._isDateVisible);
+			gconf.set_boolean('/apps/gnome-shell/panel_clock/prefs/show_seconds',
+							  this._isSecVisible);
+		}
 
         /* right */
 
@@ -722,7 +749,7 @@ ClockPropertiesPopup.prototype = {
 
 	this.actor = new St.BoxLayout({name: 'clockPropertiesPopup' });
 	this.clockProperties = new ClockProperties.ClockProperties(
-	      panel, panel._isDateVisible, panel._isSecVisible);
+	      panel, panel._isSecVisible, panel._isDateVisible);
 	this.actor.add(this.clockProperties.actor);
 
 	Main.chrome.addActor(this.actor, { visibleInOverview: true,
